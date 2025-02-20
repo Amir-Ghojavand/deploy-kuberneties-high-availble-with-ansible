@@ -1,0 +1,5 @@
+- name: Install kubectl.
+  package:
+    name: kubectl
+    state: present
+  when: node_type == "master"

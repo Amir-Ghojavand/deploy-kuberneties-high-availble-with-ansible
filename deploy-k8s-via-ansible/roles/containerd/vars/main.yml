@@ -1,0 +1,8 @@
+containerd_config_file: "/etc/containerd/config.toml"
+kubernetes_version: "1.30" 
+kubernetes_repo_url: "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/"
+kubernetes_key_url: "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/Release.key"
+keyring_path: "/etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+sources_list_path: "/etc/apt/sources.list.d/kubernetes.list"
+containerd_dir: "/etc/containerd"
+

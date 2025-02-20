@@ -1,0 +1,63 @@
+- name: Gather package facts to check installed packages
+  package_facts:
+
+- name: Install Kubernetes packages if not present
+  package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ kubernetes_packages }}"
+  when: "'{{ item }}' not in ansible_facts.packages.keys()"
+
+- name: debug ansible 
+  debug:
+    msg: "{{ kubernetes_packages }}"
+
+- name: check for existence of kubelet environment file.
+  stat:
+    path: "{{ kubelet_environment_file_path }}"
+  register: kubelet_environment_file
+
+- name: set facts for KUBELET_EXTRA_ARGS task if environment file exists.
+  set_fact:
+    kubelet_args_path: "{{ kubelet_environment_file_path }}"
+    kubelet_args_line: "{{ 'KUBELET_EXTRA_ARGS=' + kubernetes_kubelet_extra_args }}"
+    kubelet_args_regexp: "^KUBELET_EXTRA_ARGS="
+  when: kubelet_environment_file.stat.exists
+
+- name: set facts for KUBELET_EXTRA_ARGS task if environment file doesn't exist.
+  set_fact:
+    kubelet_args_path: "/etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
+    kubelet_args_line: '{{ ''Environment="KUBELET_EXTRA_ARGS='' + kubernetes_kubelet_extra_args + ''"'' }}'
+    kubelet_args_regexp: '^Environment="KUBELET_EXTRA_ARGS='
+  when: not kubelet_environment_file.stat.exists
+
+- name: configure KUBELET_EXTRA_ARGS.
+  lineinfile:
+    path: "{{ kubelet_args_path }}"
+    line: "{{ kubelet_args_line }}"
+    regexp: "{{ kubelet_args_regexp }}"
+    state: present
+    mode: 0644
+  register: kubelet_config_file
+
+- name: Deploy kubelet configuration file with private IP
+  template:
+    src: templates/kubelet.yml.j2
+    dest: /etc/default/kubelet
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload systemd daemon
+  command: systemctl daemon-reload
+
+- name: Restart kubelet service
+  service:
+    name: kubelet
+    state: restarted
+
+- name: ensure kubelet is started and enabled at boot.
+  service:
+    name: kubelet
+    state: started
+    enabled: true
